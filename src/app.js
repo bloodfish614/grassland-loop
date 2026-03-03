@@ -1,4 +1,4 @@
-import { BG_VIDEO_URL, BUILD, EPSILON_SEC, HANDOFF_WINDOW_SEC } from './config.js';
+import { BG_VIDEO_URL, BUILD, EPSILON_SEC, PRIME_SECONDS, XFADE_SECONDS } from './config.js';
 import { createBgVideoLooper } from './bgVideoLoop.js';
 
 const canvas = document.getElementById('stage');
@@ -7,7 +7,8 @@ const ctx = canvas.getContext('2d');
 
 const looper = createBgVideoLooper({
   url: BG_VIDEO_URL,
-  handoffWindowSec: HANDOFF_WINDOW_SEC,
+  xfadeSeconds: XFADE_SECONDS,
+  primeSeconds: PRIME_SECONDS,
   epsilonSec: EPSILON_SEC,
 });
 

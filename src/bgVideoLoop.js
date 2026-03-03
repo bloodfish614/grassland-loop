@@ -9,7 +9,15 @@ function createVideo(url) {
   return video;
 }
 
-export function createBgVideoLooper({ url, handoffWindowSec, epsilonSec }) {
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function smoothstep01(u) {
+  return u * u * (3 - 2 * u);
+}
+
+export function createBgVideoLooper({ url, xfadeSeconds, primeSeconds, epsilonSec }) {
   const a = createVideo(url);
   const b = createVideo(url);
 
@@ -18,7 +26,9 @@ export function createBgVideoLooper({ url, handoffWindowSec, epsilonSec }) {
 
   let bgStatus = 'loading';
   let needUserGesture = false;
+  let primed = false;
   let handoffActive = false;
+  let handoffElapsedSec = 0;
   let handoffAlpha = 0;
   let pending404 = false;
 
@@ -98,8 +108,16 @@ export function createBgVideoLooper({ url, handoffWindowSec, epsilonSec }) {
 
     const remaining = duration - front.currentTime;
 
-    if (!handoffActive && remaining <= handoffWindowSec) {
+    if (!primed && remaining <= primeSeconds) {
+      primed = true;
+      back.pause();
+      back.currentTime = 0;
+      back.load();
+    }
+
+    if (!handoffActive && remaining <= xfadeSeconds) {
       handoffActive = true;
+      handoffElapsedSec = 0;
       handoffAlpha = 0;
       back.currentTime = 0;
       if (!needUserGesture) {
@@ -114,19 +132,21 @@ export function createBgVideoLooper({ url, handoffWindowSec, epsilonSec }) {
 
     if (handoffActive) {
       if (canDraw(back)) {
-        handoffAlpha = Math.min(1, handoffAlpha + dtSec / handoffWindowSec);
+        handoffElapsedSec += dtSec;
+        const u = clamp01(handoffElapsedSec / xfadeSeconds);
+        handoffAlpha = smoothstep01(u);
       }
 
-      const shouldSwap =
-        handoffAlpha >= 1 ||
-        (duration - front.currentTime <= epsilonSec && canDraw(back));
+      const shouldSwap = handoffAlpha >= 0.999 || (remaining <= epsilonSec && canDraw(back) && handoffAlpha >= 0.999);
 
       if (shouldSwap) {
         const oldFront = front;
         front = back;
         back = oldFront;
 
+        primed = false;
         handoffActive = false;
+        handoffElapsedSec = 0;
         handoffAlpha = 0;
 
         back.pause();
